@@ -4,7 +4,7 @@ Nature is not as simple as dry textbooks suggest. It is a series of accidents an
 
 This project is a single-page HTML application featuring 118 interactive elements. Every description is rewritten as a haiku: 5-7-5 syllables of humor, sass, or dark truth.
 
-[![Aggy's Periodic Table](https://raw.githubusercontent.com/AUAggy/periodic-table-haiku/main/screenshot.png)](https://AUAggy.github.io/periodic-table-haiku/)
+[![Aggy's Periodic Table](screenshot.png)](https://AUAggy.github.io/periodic-table-haiku/)
 
 ### Sample Poetry
 
@@ -19,8 +19,6 @@ The application is a self-contained HTML file. It uses CSS Grid for the table la
 ### Usage
 
 Open `index.html` in a modern web browser. Click any element to view its scientific data and corresponding haiku.
-
-[GitHub Repository](https://github.com/AUAggy/periodic-table-haiku)
 
 ---
 Aggy's Periodic Table (Haiku Edition) is a free educational tool by [miaggy.com](https://miaggy.com).
