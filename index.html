@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Periodic Table - Haiku Edition</title>
+
+<!-- Favicon -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧪</text></svg>">
+
+<!-- Open Graph Metadata -->
+<meta property="og:title" content="Aggy's Periodic Table: Haiku Edition">
+<meta property="og:description" content="118 interactive elements with sassy, dark, and punchy haikus. No dry textbook energy here.">
+<meta property="og:image" content="screenshot.png">
+<meta property="og:type" content="website">
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:ital,wght@0,300;0,600;0,900;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0e12;
+    --surface: #14161d;
+    --surface2: #1c1f2a;
+    --border: rgba(255,255,255,0.06);
+    --text: #e8eaf0;
+    --text-dim: #6b7180;
+    --accent: #7ee8a2;
+
+    --reactive-nonmetal: #4ade80;
+    --noble-gas: #a78bfa;
+    --alkali-metal: #f87171;
+    --alkaline-earth: #fb923c;
+    --transition-metal: #60a5fa;
+    --post-transition: #34d399;
+    --metalloid: #fbbf24;
+    --halogen: #f472b6;
+    --lanthanide: #c084fc;
+    --actinide: #fb7185;
+    --unknown: #6b7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+
+  header {
+    padding: 28px 40px 16px;
+    display: flex; align-items: baseline; gap: 16px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 2;
+  }
+
+  header h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 1.6rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: var(--text);
+  }
+
+  header span {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .main {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+    z-index: 1;
+    flex: 1;
+  }
+
+  /* LEGEND */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 18px;
+    padding: 14px 40px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .legend-item {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: color 0.2s;
+  }
+
+  .legend-item:hover { color: var(--text); }
+
+  .legend-dot {
+    width: 9px; height: 9px; border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* TABLE */
+  .table-wrap {
+    padding: 20px 30px 10px;
+    overflow-x: auto;
+  }
+
+  .pt-grid {
+    display: grid;
+    grid-template-columns: repeat(18, 52px);
+    grid-template-rows: repeat(10, 56px);
+    gap: 3px;
+    width: fit-content;
+    margin: 0 auto;
+  }
+
+  .el {
+    position: relative;
+    border-radius: 5px;
+    padding: 5px 4px 4px;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.15s, background 0.15s;
+    border: 1px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .el:hover {
+    transform: scale(1.18);
+    z-index: 10;
+  }
+
+  .el.active {
+    outline: 2px solid white;
+    outline-offset: 1px;
+    transform: scale(1.15);
+    z-index: 20;
+  }
+
+  .el .num {
+    font-size: 0.52rem;
+    color: rgba(255,255,255,0.45);
+    line-height: 1;
+    margin-bottom: 1px;
+  }
+
+  .el .sym {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: rgba(255,255,255,0.95);
+  }
+
+  .el .name {
+    font-size: 0.42rem;
+    color: rgba(255,255,255,0.45);
+    line-height: 1;
+    margin-top: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
+
+  .el .mass {
+    font-size: 0.38rem;
+    color: rgba(255,255,255,0.3);
+    margin-top: 1px;
+  }
+
+  /* Category colors */
+  .cat-reactive-nonmetal { background: rgba(74,222,128,0.13); border-color: rgba(74,222,128,0.2); }
+  .cat-reactive-nonmetal:hover, .cat-reactive-nonmetal.active { background: rgba(74,222,128,0.22); border-color: rgba(74,222,128,0.5); box-shadow: 0 0 16px rgba(74,222,128,0.25); }
+
+  .cat-noble-gas { background: rgba(167,139,250,0.13); border-color: rgba(167,139,250,0.2); }
+  .cat-noble-gas:hover, .cat-noble-gas.active { background: rgba(167,139,250,0.22); border-color: rgba(167,139,250,0.5); box-shadow: 0 0 16px rgba(167,139,250,0.25); }
+
+  .cat-alkali-metal { background: rgba(248,113,113,0.13); border-color: rgba(248,113,113,0.2); }
+  .cat-alkali-metal:hover, .cat-alkali-metal.active { background: rgba(248,113,113,0.22); border-color: rgba(248,113,113,0.5); box-shadow: 0 0 16px rgba(248,113,113,0.25); }
+
+  .cat-alkaline-earth { background: rgba(251,146,60,0.13); border-color: rgba(251,146,60,0.2); }
+  .cat-alkaline-earth:hover, .cat-alkaline-earth.active { background: rgba(251,146,60,0.22); border-color: rgba(251,146,60,0.5); box-shadow: 0 0 16px rgba(251,146,60,0.25); }
+
+  .cat-transition-metal { background: rgba(96,165,250,0.13); border-color: rgba(96,165,250,0.2); }
+  .cat-transition-metal:hover, .cat-transition-metal.active { background: rgba(96,165,250,0.22); border-color: rgba(96,165,250,0.5); box-shadow: 0 0 16px rgba(96,165,250,0.25); }
+
+  .cat-post-transition { background: rgba(52,211,153,0.13); border-color: rgba(52,211,153,0.2); }
+  .cat-post-transition:hover, .cat-post-transition.active { background: rgba(52,211,153,0.22); border-color: rgba(52,211,153,0.5); box-shadow: 0 0 16px rgba(52,211,153,0.25); }
+
+  .cat-metalloid { background: rgba(251,191,36,0.13); border-color: rgba(251,191,36,0.2); }
+  .cat-metalloid:hover, .cat-metalloid.active { background: rgba(251,191,36,0.22); border-color: rgba(251,191,36,0.5); box-shadow: 0 0 16px rgba(251,191,36,0.25); }
+
+  .cat-halogen { background: rgba(244,114,182,0.13); border-color: rgba(244,114,182,0.2); }
+  .cat-halogen:hover, .cat-halogen.active { background: rgba(244,114,182,0.22); border-color: rgba(244,114,182,0.5); box-shadow: 0 0 16px rgba(244,114,182,0.25); }
+
+  .cat-lanthanide { background: rgba(192,132,252,0.13); border-color: rgba(192,132,252,0.2); }
+  .cat-lanthanide:hover, .cat-lanthanide.active { background: rgba(192,132,252,0.22); border-color: rgba(192,132,252,0.5); box-shadow: 0 0 16px rgba(192,132,252,0.25); }
+
+  .cat-actinide { background: rgba(251,113,133,0.13); border-color: rgba(251,113,133,0.2); }
+  .cat-actinide:hover, .cat-actinide.active { background: rgba(251,113,133,0.22); border-color: rgba(251,113,133,0.5); box-shadow: 0 0 16px rgba(251,113,133,0.25); }
+
+  .cat-unknown { background: rgba(107,114,128,0.13); border-color: rgba(107,114,128,0.2); }
+  .cat-unknown:hover, .cat-unknown.active { background: rgba(107,114,128,0.22); border-color: rgba(107,114,128,0.5); }
+
+  .group-label {
+    display: flex; align-items: flex-end; justify-content: center;
+    font-size: 0.55rem; color: var(--text-dim);
+    padding-bottom: 4px;
+  }
+
+  .period-label {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.55rem; color: var(--text-dim);
+  }
+
+  /* DETAIL PANEL */
+  .detail-panel {
+    border-top: 1px solid var(--border);
+    padding: 28px 40px;
+    display: none;
+    animation: slideUp 0.25s ease;
+  }
+
+  .detail-panel.visible { display: block; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .detail-inner {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  .detail-symbol-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .detail-sym-big {
+    font-family: 'Fraunces', serif;
+    font-size: 5rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .detail-name-num {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .detail-name {
+    font-family: 'Fraunces', serif;
+    font-size: 1.4rem;
+    font-weight: 300;
+    font-style: italic;
+  }
+
+  .detail-num {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .detail-cat-badge {
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .detail-props {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px 24px;
+  }
+
+  .prop-item {}
+  .prop-label {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .prop-value {
+    font-size: 0.9rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .detail-desc {
+    grid-column: 1 / -1;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    line-height: 1.7;
+    margin-top: 4px;
+    max-width: 680px;
+    font-family: 'DM Mono', monospace;
+    animation: haikuReveal 0.6s ease-out forwards;
+  }
+
+  @keyframes haikuReveal {
+    from { opacity: 0; transform: translateY(8px); filter: blur(2px); }
+    to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  }
+
+  /* dim inactive */
+  .pt-grid.filter-active .el:not(.cat-highlight) {
+    opacity: 0.2;
+    pointer-events: none;
+  }
+
+  /* Electron shell vis */
+  .electron-vis {
+    width: 80px; height: 80px;
+    position: relative;
+    margin-top: 8px;
+  }
+
+  .e-nucleus {
+    position: absolute;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: white;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+  }
+
+  .e-orbit {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.15);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    animation: spin linear infinite;
+  }
+
+  .e-dot {
+    position: absolute;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    top: -2.5px; left: 50%;
+    margin-left: -2.5px;
+  }
+
+  @keyframes spin {
+    from { transform: translate(-50%,-50%) rotate(0deg); }
+    to { transform: translate(-50%,-50%) rotate(360deg); }
+  }
+
+  .placeholder-msg {
+    padding: 24px 40px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    font-style: italic;
+  }
+
+  /* Dim class for category filter */
+  .legend-item.selected { color: var(--text); }
+  .legend-item.selected .legend-dot { box-shadow: 0 0 8px currentColor; }
+
+  .footer {
+    padding: 24px 40px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+  }
+
+  .footer a {
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer a:hover {
+    color: var(--accent);
+  }
+
+  .github-link {
+    position: absolute;
+    top: 32px;
+    right: 40px;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .github-link a {
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .github-link a:hover {
+    color: var(--accent);
+  }
+
+  /* RESPONSIVE QUERIES */
+  @media (max-width: 1200px) {
+    .pt-grid {
+      grid-template-columns: repeat(18, 48px);
+      grid-template-rows: repeat(10, 52px);
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .pt-grid {
+      grid-template-columns: repeat(18, 42px);
+      grid-template-rows: repeat(10, 46px);
+    }
+    .el .sym { font-size: 0.9rem; }
+    .el .name { font-size: 0.36rem; }
+  }
+
+  @media (max-width: 820px) {
+    header {
+      padding: 24px 30px 12px;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .github-link {
+      position: static;
+      margin-top: 4px;
+    }
+    .legend { padding: 12px 30px; }
+    .pt-grid {
+      grid-template-columns: repeat(18, 36px);
+      grid-template-rows: repeat(10, 40px);
+      gap: 2px;
+    }
+    .el .sym { font-size: 0.8rem; }
+    .el .name, .el .mass { display: none; }
+    
+    .detail-panel { padding: 24px 30px; }
+    .detail-inner {
+      grid-template-columns: 1fr;
+      gap: 24px;
+      text-align: center;
+    }
+    .detail-symbol-block { align-items: center; }
+    .detail-props { grid-template-columns: repeat(2, 1fr); gap: 12px 16px; }
+    .detail-desc { margin: 0 auto; }
+  }
+
+  @media (max-width: 480px) {
+    .pt-grid {
+      grid-template-columns: repeat(18, 30px);
+      grid-template-rows: repeat(10, 34px);
+    }
+    .el .sym { font-size: 0.7rem; }
+    .el .num { font-size: 0.45rem; }
+    .detail-props { grid-template-columns: 1fr; }
+    .footer { display: none; }
+  }
+  </style>
+  </head>
+  <body>
+  <div class="noise"></div>
+  <header>
+  <h1>Aggy's Periodic Table (Haiku Edition)</h1>
+  <span>HAIKU. Because nature's not as simple as those dry textbooks make it out to be</span>
+  <div class="github-link">
+    <a href="https://github.com/placeholder/periodic-table-haiku" target="_blank" rel="noopener">View Source on GitHub</a>
+  </div>
+  </header>
+
+  <div class="main">
+  <div class="legend" id="legend"></div>
+  <div class="table-wrap">
+    <div class="pt-grid" id="grid"></div>
+  </div>
+  <div id="detail-placeholder" class="placeholder-msg">← Click any element to view details</div>
+  <div class="detail-panel" id="detail"></div>
+  </div>
+
+  <footer class="footer">
+    Aggy's Periodic Table (Haiku Edition) is a free educational tool by 
+    <a href="https://miaggy.com" target="_blank" rel="noopener">miaggy.com</a>
+  </footer>
+
+<script>
+const CATEGORIES = {
+  'reactive-nonmetal': { label: 'Reactive nonmetal', color: '#4ade80' },
+  'noble-gas': { label: 'Noble gas', color: '#a78bfa' },
+  'alkali-metal': { label: 'Alkali metal', color: '#f87171' },
+  'alkaline-earth': { label: 'Alkaline earth', color: '#fb923c' },
+  'transition-metal': { label: 'Transition metal', color: '#60a5fa' },
+  'post-transition': { label: 'Post-transition', color: '#34d399' },
+  'metalloid': { label: 'Metalloid', color: '#fbbf24' },
+  'halogen': { label: 'Halogen', color: '#f472b6' },
+  'lanthanide': { label: 'Lanthanide', color: '#c084fc' },
+  'actinide': { label: 'Actinide', color: '#fb7185' },
+  'unknown': { label: 'Unknown', color: '#6b7280' },
+};
+
+// [symbol, name, mass, category, period, group, electron_config, electronegativity, melting_pt, boiling_pt, density, discovered, desc]
+const ELEMENTS = [
+  [1,'H','Hydrogen',1.008,'reactive-nonmetal',1,1,'1s¹',2.20,-259.16,-252.88,0.00009,1766,'First in the lineup,\nHighly explosive and light,\nHindenburg\'s mistake.'],
+  [2,'He','Helium',4.003,'noble-gas',1,18,'1s²',null,-272.20,-268.93,0.000164,1895,'Inert and noble,\nMakes your voice sound like a mouse,\nUp, up, and away.'],
+  [3,'Li','Lithium',6.941,'alkali-metal',2,1,'[He] 2s¹',0.98,180.54,1342,0.534,1817,'Powering your phone,\nHighly reactive and wild,\nKeeps the mood swings down.'],
+  [4,'Be','Beryllium',9.012,'alkaline-earth',2,2,'[He] 2s²',1.57,1287,2470,1.85,1798,'Strong and lightweight gem,\nDo not breathe my toxic dust,\nLungs will surely fail.'],
+  [5,'B','Boron',10.81,'metalloid',2,13,'[He] 2s² 2p¹',2.04,2075,4000,2.34,1808,'Black and hard and weird,\nPlants need me to grow up tall,\nI am quite a bore.'],
+  [6,'C','Carbon',12.011,'reactive-nonmetal',2,14,'[He] 2s² 2p²',2.55,3550,4027,2.267,1789,'Basis of all life,\nDiamond or a pencil lead,\nBuried deep for years.'],
+  [7,'N','Nitrogen',14.007,'reactive-nonmetal',2,15,'[He] 2s² 2p³',3.04,-210.00,-195.79,0.001145,1772,'Most of what you breathe,\nKeeps the bags of chips quite crisp,\nCold enough to freeze.'],
+  [8,'O','Oxygen',15.999,'reactive-nonmetal',2,16,'[He] 2s² 2p⁴',3.44,-218.79,-182.96,0.001331,1774,'Breath of life for you,\nMakes the iron turn to rust,\nFeed the hungry fire.'],
+  [9,'F','Fluorine',18.998,'halogen',2,17,'[He] 2s² 2p⁵',3.98,-219.67,-188.11,0.001696,1886,'Most reactive of all,\nWants your electrons so bad,\nWill eat through your jar.'],
+  [10,'Ne','Neon',20.18,'noble-gas',2,18,'[He] 2s² 2p⁶',null,-248.59,-246.05,0.0009,1898,'Glow in Vegas nights,\nI react to nobody,\nNoble and alone.'],
+  [11,'Na','Sodium',22.99,'alkali-metal',3,1,'[Ne] 3s¹',0.93,97.79,882.8,0.968,1807,'Soft enough to cut,\nI explode in water\'s touch,\nSalt of the earth\'s tears.'],
+  [12,'Mg','Magnesium',24.305,'alkaline-earth',3,2,'[Ne] 3s²',1.31,650,1090,1.738,1755,'Burning bright and white,\nBlinding light and sudden heat,\nFlares in dark of night.'],
+  [13,'Al','Aluminium',26.982,'post-transition',3,13,'[Ne] 3s² 3p¹',1.61,660.32,2519,2.70,1825,'Light and shiny foil,\nWrapping up your leftovers,\nI am everywhere.'],
+  [14,'Si','Silicon',28.085,'metalloid',3,14,'[Ne] 3s² 3p²',1.90,1414,3265,2.329,1824,'Brain of your machine,\nSand upon the ocean shore,\nSilicon Valley.'],
+  [15,'P','Phosphorus',30.974,'reactive-nonmetal',3,15,'[Ne] 3s² 3p³',2.19,44.15,280.5,1.823,1669,'Glowing in the dark,\nMatches striking in the night,\nDon\'t touch the white stuff.'],
+  [16,'S','Sulfur',32.06,'reactive-nonmetal',3,16,'[Ne] 3s² 3p⁴',2.58,115.21,444.72,2.067,1777,'Smell of rotten eggs,\nYellow brimstone from the pits,\nHell\'s own perfume choice.'],
+  [17,'Cl','Chlorine',35.45,'halogen',3,17,'[Ne] 3s² 3p⁵',3.16,-101.5,-34.05,0.003214,1774,'Smell of summer pools,\nGas that choked the trenches once,\nClean but deadly too.'],
+  [18,'Ar','Argon',39.948,'noble-gas',3,18,'[Ne] 3s² 3p⁶',null,-189.35,-185.85,0.001784,1894,'Lazy noble gas,\nFilling up the empty space,\nI do nothing here.'],
+  [19,'K','Potassium',39.098,'alkali-metal',4,1,'[Ar] 4s¹',0.82,63.38,759,0.89,1807,'Bananas have me,\nOne touch and I go kaboom,\nHeartbeat\'s steady friend.'],
+  [20,'Ca','Calcium',40.078,'alkaline-earth',4,2,'[Ar] 4s²',1.00,842,1484,1.54,1808,'Building up your bones,\nMilk is where I like to hide,\nStrong and white and hard.'],
+  [21,'Sc','Scandium',44.956,'transition-metal',4,3,'[Ar] 3d¹ 4s²',1.36,1541,2836,2.989,1879,'Rare and hard to find,\nHidden in a bicycle,\nStronger than I look.'],
+  [22,'Ti','Titanium',47.867,'transition-metal',4,4,'[Ar] 3d² 4s²',1.54,1668,3287,4.507,1791,'Strong as any steel,\nLighter than a feather\'s dream,\nKnees and hips of metal.'],
+  [23,'V','Vanadium',50.942,'transition-metal',4,5,'[Ar] 3d³ 4s²',1.63,1910,3407,6.11,1801,'Steel is getting tough,\nTools that never break or bend,\nV for victory.'],
+  [24,'Cr','Chromium',51.996,'transition-metal',4,6,'[Ar] 3d⁵ 4s¹',1.66,1907,2671,7.19,1797,'Shiny bumper\'s gleam,\nRed and green in precious gems,\nMirror on the wall.'],
+  [25,'Mn','Manganese',54.938,'transition-metal',4,7,'[Ar] 3d⁵ 4s²',1.55,1246,2061,7.21,1774,'Stealing the limelight,\nHardening the railroad steel,\nPurple in the glass.'],
+  [26,'Fe','Iron',55.845,'transition-metal',4,8,'[Ar] 3d⁶ 4s²',1.83,1538,2861,7.874,1789,'Core of the whole world,\nRusting in the rain and dew,\nBlood\'s metallic taste.'],
+  [27,'Co','Cobalt',58.933,'transition-metal',4,9,'[Ar] 3d⁷ 4s²',1.88,1495,2927,8.9,1735,'Deepest blue of glass,\nMagnets holding on for life,\nBatteries of power.'],
+  [28,'Ni','Nickel',58.693,'transition-metal',4,10,'[Ar] 3d⁸ 4s²',1.91,1455,2913,8.908,1751,'Found in five-cent coins,\nShiny skin of many things,\nTough and rust-proof skin.'],
+  [29,'Cu','Copper',63.546,'transition-metal',4,11,'[Ar] 3d¹⁰ 4s¹',1.90,1084.62,2562,8.96,1789,'Wires in the wall,\nPenny for your lonely thoughts,\nConducting the flow.'],
+  [30,'Zn','Zinc',65.38,'transition-metal',4,12,'[Ar] 3d¹⁰ 4s²',1.65,419.53,907,7.133,1746,'Sunblock on your nose,\nStopping rust upon the steel,\nCold\'s worst enemy.'],
+  [31,'Ga','Gallium',69.723,'post-transition',4,13,'[Ar] 3d¹⁰ 4s² 4p¹',1.81,29.76,2204,5.91,1875,'Melt within your palm,\nSolid metal turns to soup,\nHot hands are my fate.'],
+  [32,'Ge','Germanium',72.63,'metalloid',4,14,'[Ar] 3d¹⁰ 4s² 4p²',2.01,938.25,2820,5.323,1886,'Glass for night-time eyes,\nHalf a metal, half a dream,\nLogic\'s silent heart.'],
+  [33,'As','Arsenic',74.922,'metalloid',4,15,'[Ar] 3d¹⁰ 4s² 4p³',2.18,817,614,5.727,1250,'Sweetest bitter end,\nShadow in the glass of wine,\nLethal legacy.'],
+  [34,'Se','Selenium',78.971,'reactive-nonmetal',4,16,'[Ar] 3d¹⁰ 4s² 4p⁴',2.55,221,685,4.81,1817,'Copier\'s bright soul,\nTurning light to voltage now,\nVital in small bits.'],
+  [35,'Br','Bromine',79.904,'halogen',4,17,'[Ar] 3d¹⁰ 4s² 4p⁵',2.96,-7.2,58.8,3.1028,1826,'Red and fuming pool,\nStinky liquid in the dark,\nChoking on the air.'],
+  [36,'Kr','Krypton',83.798,'noble-gas',4,18,'[Ar] 3d¹⁰ 4s² 4p⁶',3.00,-157.36,-153.22,0.003749,1898,'Not the hero\'s home,\nGlows with light in empty tubes,\nHidden from the world.'],
+  [37,'Rb','Rubidium',85.468,'alkali-metal',5,1,'[Kr] 5s¹',0.82,39.31,688,1.532,1861,'Ignites in the air,\nExplodes when it sees the sea,\nPurple fire\'s dance.'],
+  [38,'Sr','Strontium',87.62,'alkaline-earth',5,2,'[Kr] 5s²',0.95,777,1382,2.64,1790,'Red in fireworks,\nFalling from the fission sky,\nHiding in your bones.'],
+  [39,'Y','Yttrium',88.906,'transition-metal',5,3,'[Kr] 4d¹ 5s²',1.22,1522,3345,4.472,1794,'Sparkle in the tube,\nLasers cutting through the night,\nRare but useful friend.'],
+  [40,'Zr','Zirconium',91.224,'transition-metal',5,4,'[Kr] 4d² 5s²',1.33,1854,4409,6.52,1789,'Fake a diamond\'s glint,\nReactor\'s silver-grey skin,\nHard and heat-proof wall.'],
+  [41,'Nb','Niobium',92.906,'transition-metal',5,5,'[Kr] 4d⁴ 5s¹',1.60,2477,4744,8.57,1801,'High-speed jet engines,\nSuperconducting magnets,\nTougher than the rest.'],
+  [42,'Mo','Molybdenum',95.95,'transition-metal',5,6,'[Kr] 4d⁵ 5s¹',2.16,2623,4639,10.22,1778,'High-heat steel\'s best friend,\nKeeping strength when things get hot,\nHard to even say.'],
+  [43,'Tc','Technetium',97,'transition-metal',5,7,'[Kr] 4d⁵ 5s²',1.90,2157,4265,11.5,1937,'First of all the fakes,\nMan-made in a lab\'s cold light,\nGlowing for the scan.'],
+  [44,'Ru','Ruthenium',101.07,'transition-metal',5,8,'[Kr] 4d⁷ 5s¹',2.20,2334,4150,12.45,1844,'Hardness in the gold,\nCatalyst for many things,\nRare and precious grey.'],
+  [45,'Rh','Rhodium',102.906,'transition-metal',5,9,'[Kr] 4d⁸ 5s¹',2.28,1964,3695,12.41,1803,'Silver-white and rare,\nPricey mirror of the world,\nCleaning up the fumes.'],
+  [46,'Pd','Palladium',106.42,'transition-metal',5,10,'[Kr] 4d¹⁰',2.20,1554.9,2963,12.023,1803,'Sucking hydrogen,\nCleans the exhaust from your car,\nPlatinum\'s cousin.'],
+  [47,'Ag','Silver',107.868,'transition-metal',5,11,'[Kr] 4d¹⁰ 5s¹',1.93,961.78,2162,10.49,1789,'Moonlight in a coin,\nKilling germs, reflecting all,\nSecond best to gold.'],
+  [48,'Cd','Cadmium',112.414,'transition-metal',5,12,'[Kr] 4d¹⁰ 5s²',1.69,321.07,767,8.65,1817,'Yellow paint so bright,\nToxic batteries of old,\nPoison in the soil.'],
+  [49,'In','Indium',114.818,'post-transition',5,13,'[Kr] 4d¹⁰ 5s² 5p¹',1.78,156.6,2072,7.31,1863,'Screen for your fingers,\nSoft enough to bite with teeth,\nMelts into the glass.'],
+  [50,'Sn','Tin',118.71,'post-transition',5,14,'[Kr] 4d¹⁰ 5s² 5p²',1.96,231.93,2602,7.265,1789,'Cans for all your beans,\nBronze of old-time warriors,\nWhistling when I bend.'],
+  [51,'Sb','Antimony',121.76,'metalloid',5,15,'[Kr] 4d¹⁰ 5s² 5p³',2.05,630.63,1587,6.697,1450,'Cosmetics of old,\nFire-proof and brittle metal,\nSharpening the lead.'],
+  [52,'Te','Tellurium',127.6,'metalloid',5,16,'[Kr] 4d¹⁰ 5s² 5p⁴',2.10,449.51,988,6.24,1782,'Smell of garlic breath,\nRare and brittle silver stone,\nSunlight\'s energy.'],
+  [53,'I','Iodine',126.904,'halogen',5,17,'[Kr] 4d¹⁰ 5s² 5p⁵',2.66,113.7,184.3,4.933,1811,'Purple smoke rising,\nCleaning wounds with stinging bite,\nThyroid\'s hungry fuel.'],
+  [54,'Xe','Xenon',131.293,'noble-gas',5,18,'[Kr] 4d¹⁰ 5s² 5p⁶',2.60,-111.75,-108.09,0.005887,1898,'Brightest flash of light,\nDrifting through the heavy air,\nNoble and aloof.'],
+  [55,'Cs','Caesium',132.905,'alkali-metal',6,1,'[Xe] 6s¹',0.79,28.5,671,1.879,1860,'Soft and golden gold,\nBoom when I touch the water,\nCounting every tick.'],
+  [56,'Ba','Barium',137.327,'alkaline-earth',6,2,'[Xe] 6s²',0.89,727,1897,3.51,1808,'Drink the chalky white,\nWatch the X-rays find the path,\nFire\'s greenest heart.'],
+  [57,'La','Lanthanum',138.905,'lanthanide',6,3,'[Xe] 5d¹ 6s²',1.10,920,3464,6.162,1839,'Hidden in the lens,\nHiding in a hybrid car,\nRare earth starting point.'],
+  [58,'Ce','Cerium',140.116,'lanthanide',6,4,'[Xe] 4f¹ 5d¹ 6s²',1.12,798,3443,6.770,1803,'Sparking in the light,\nPolishing the glass so clear,\nCommon but still rare.'],
+  [59,'Pr','Praseodymium',140.908,'lanthanide',6,5,'[Xe] 4f³ 6s²',1.13,931,3520,6.77,1885,'Yellow-greenish glass,\nStrength for all the aircraft parts,\nDaughter of the twins.'],
+  [60,'Nd','Neodymium',144.242,'lanthanide',6,6,'[Xe] 4f⁴ 6s²',1.14,1016,3074,7.01,1885,'Strongest magnet known,\nHolding hard drives tight and fast,\nHidden power source.'],
+  [61,'Pm','Promethium',145,'lanthanide',6,7,'[Xe] 4f⁵ 6s²',1.13,1042,3000,7.26,1945,'No stable home found,\nGlowing in the nuclear waste,\nStolen from the gods.'],
+  [62,'Sm','Samarium',150.36,'lanthanide',6,8,'[Xe] 4f⁶ 6s²',1.17,1072,1794,7.52,1879,'Magnets in the heat,\nCancer treatment\'s heavy hand,\nSilvery and soft.'],
+  [63,'Eu','Europium',151.964,'lanthanide',6,9,'[Xe] 4f⁷ 6s²',1.20,826,1529,5.264,1901,'Red and blue on screen,\nPhosphor glowing in the dark,\nActive and alert.'],
+  [64,'Gd','Gadolinium',157.25,'lanthanide',6,10,'[Xe] 4f⁷ 5d¹ 6s²',1.20,1312,3273,7.90,1880,'MRI contrast,\nShielding from the neutron\'s path,\nMalleable and grey.'],
+  [65,'Tb','Terbium',158.925,'lanthanide',6,11,'[Xe] 4f⁹ 6s²',1.10,1356,3230,8.23,1843,'Green light in the tube,\nSolid state and magneto,\nSoft and silvery.'],
+  [66,'Dy','Dysprosium',162.5,'lanthanide',6,12,'[Xe] 4f¹⁰ 6s²',1.22,1407,2562,8.540,1886,'Electric car\'s heart,\nMagnets standing up to heat,\nHard to get away.'],
+  [67,'Ho','Holmium',164.930,'lanthanide',6,13,'[Xe] 4f¹¹ 6s²',1.23,1461,2720,8.79,1879,'Magnetic moment,\nHighest of all elements,\nLaser cutting beam.'],
+  [68,'Er','Erbium',167.259,'lanthanide',6,14,'[Xe] 4f¹² 6s²',1.24,1529,2868,9.066,1843,'Pink glass in the light,\nFiber optics\' silent boost,\nSilvery and soft.'],
+  [69,'Tm','Thulium',168.934,'lanthanide',6,15,'[Xe] 4f¹³ 6s²',1.25,1545,1950,9.32,1879,'Rarest of the bunch,\nPortable and tiny X-rays,\nLeast abundant friend.'],
+  [70,'Yb','Ytterbium',173.045,'lanthanide',6,16,'[Xe] 4f¹⁴ 6s²',1.10,824,1196,6.90,1878,'Clock of perfect time,\nAlloying the cables now,\nEasy to be worked.'],
+  [71,'Lu','Lutetium',174.967,'lanthanide',6,17,'[Xe] 4f¹⁴ 5d¹ 6s²',1.27,1652,3402,9.841,1907,'Last of its own kind,\nPET scan\'s bright and watchful eye,\nHardest rare earth known.'],
+  [72,'Hf','Hafnium',178.49,'transition-metal',6,4,'[Xe] 4f¹⁴ 5d² 6s²',1.30,2233,4603,13.31,1923,'Zirconium\'s twin,\nStopping neutrons in their tracks,\nLustrous silver-grey.'],
+  [73,'Ta','Tantalum',180.948,'transition-metal',6,5,'[Xe] 4f¹⁴ 5d³ 6s²',1.50,3017,5458,16.69,1802,'In your mobile phone,\nHolding charge and standing firm,\nRare and corrosion-proof.'],
+  [74,'W','Tungsten',183.84,'transition-metal',6,6,'[Xe] 4f¹⁴ 5d⁴ 6s²',2.36,3422,5555,19.25,1783,'Highest melting point,\nFilament that brings the light,\nHeavy weight of war.'],
+  [75,'Re','Rhenium',186.207,'transition-metal',6,7,'[Xe] 4f¹⁴ 5d⁵ 6s²',1.90,3186,5596,21.02,1925,'Rarest of the rare,\nBoiling in the engine\'s heat,\nLast to be found here.'],
+  [76,'Os','Osmium',190.23,'transition-metal',6,8,'[Xe] 4f¹⁴ 5d⁶ 6s²',2.20,3033,5012,22.59,1803,'Heavy, dense and hard,\nFountain pen with blue-white tip,\nHeavyweight of all.'],
+  [77,'Ir','Iridium',192.217,'transition-metal',6,9,'[Xe] 4f¹⁴ 5d⁷ 6s²',2.20,2446,4428,22.56,1803,'Mirror of the stars,\nStandard for the kilogram,\nEnd of dinosaurs.'],
+  [78,'Pt','Platinum',195.084,'transition-metal',6,10,'[Xe] 4f¹⁴ 5d⁹ 6s¹',2.28,1768.3,3825,21.45,1789,'Precious and so pure,\nCleaning up the engine\'s breath,\nRich and stable friend.'],
+  [79,'Au','Gold',196.967,'transition-metal',6,11,'[Xe] 4f¹⁴ 5d¹⁰ 6s¹',2.54,1064.18,2856,19.30,1789,'Sun\'s own metal heart,\nRarity and lustrous shine,\nNever fades or dies.'],
+  [80,'Hg','Mercury',200.592,'transition-metal',6,12,'[Xe] 4f¹⁴ 5d¹⁰ 6s²',2.00,-38.83,356.73,13.534,1789,'Liquid silver pool,\nQuicksilver that flows like light,\nMadness in the touch.'],
+  [81,'Tl','Thallium',204.38,'post-transition',6,13,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p¹',1.62,304,1473,11.85,1861,'Soft and toxic grey,\nRat\'s last meal in days of old,\nHidden in the wires.'],
+  [82,'Pb','Lead',207.2,'post-transition',6,14,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p²',2.33,327.46,1749,11.34,1789,'Heavy, soft and dull,\nNeurotoxin in the pipe,\nWeight of ancient sins.'],
+  [83,'Bi','Bismuth',208.98,'post-transition',6,15,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p³',2.02,271.5,1564,9.78,1789,'Pink and brittle stone,\nRainbow crystals in the pan,\nHeavy but still safe.'],
+  [84,'Po','Polonium',209,'metalloid',6,16,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁴',2.00,254,962,9.32,1898,'Curie\'s Polish pride,\nAlpha rays that kill so fast,\nGhostly blue-ish glow.'],
+  [85,'At','Astatine',210,'halogen',6,17,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁵',2.20,302,337,7.0,1940,'Rarest on the Earth,\nBlink and it\'s already gone,\nGhost of the table.'],
+  [86,'Rn','Radon',222,'noble-gas',6,18,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁶',2.20,-71,-61.7,0.00973,1900,'Silent, heavy gas,\nSeeping from the basement floor,\nDeath in every breath.'],
+  [87,'Fr','Francium',223,'alkali-metal',7,1,'[Rn] 7s¹',0.70,27,677,2.48,1939,'Briefly here then gone,\nMost unstable of the pack,\nFlicker in the dark.'],
+  [88,'Ra','Radium',226,'alkaline-earth',7,2,'[Rn] 7s²',0.90,700,1737,5.0,1898,'Glowing in the watch,\nCurie\'s prize and fatal gift,\nBlue-ish light of death.'],
+  [89,'Ac','Actinium',227,'actinide',7,3,'[Rn] 6d¹ 7s²',1.10,1050,3200,10.07,1899,'Soft and silvery,\nGlowing pale in dark of night,\nStarting the long row.'],
+  [90,'Th','Thorium',232.038,'actinide',7,4,'[Rn] 6d² 7s²',1.30,1842,4788,11.72,1829,'Safer nuclear,\nBurning for a thousand years,\nAbundant and strong.'],
+  [91,'Pa','Protactinium',231.036,'actinide',7,5,'[Rn] 5f² 6d¹ 7s²',1.50,1568,4000,15.37,1913,'Dense and toxic grey,\nUranium\'s decaying child,\nRare and radioactive.'],
+  [92,'U','Uranium',238.029,'actinide',7,6,'[Rn] 5f³ 6d¹ 7s²',1.38,1135,4131,19.05,1789,'Heavyweight of power,\nFuel for cities and for bombs,\nFission\'s double edge.'],
+  [93,'Np','Neptunium',237,'actinide',7,7,'[Rn] 5f⁴ 6d¹ 7s²',1.36,644,4000,20.45,1940,'First of the man-made,\nFollowing the path of gods,\nWaste from the reactor.'],
+  [94,'Pu','Plutonium',244,'actinide',7,8,'[Rn] 5f⁶ 7s²',1.28,639.4,3228,19.84,1940,'Nagasaki\'s fire,\nFissile heart of heavy bombs,\nGlowing for the voyage.'],
+  [95,'Am','Americium',243,'actinide',7,9,'[Rn] 5f⁷ 7s²',1.30,1176,2011,13.69,1944,'Watching for the smoke,\nTiny bit in every home,\nKeeping you so safe.'],
+  [96,'Cm','Curium',247,'actinide',7,10,'[Rn] 5f⁷ 6d¹ 7s²',1.30,1340,3110,13.51,1944,'Pierre and Marie\'s name,\nPowering the probes in space,\nMars is where I roam.'],
+  [97,'Bk','Berkelium',247,'actinide',7,11,'[Rn] 5f⁹ 7s²',1.30,986,2627,14.79,1949,'Named for Berkeley\'s hill,\nSynthesized in labs of gold,\nShort and fleeting life.'],
+  [98,'Cf','Californium',251,'actinide',7,12,'[Rn] 5f¹⁰ 7s²',1.30,900,1472,15.1,1950,'Priceless heavy spark,\nFinding gold within the earth,\nNeutron\'s heavy hand.'],
+  [99,'Es','Einsteinium',252,'actinide',7,13,'[Rn] 5f¹¹ 7s²',1.30,860,996,8.84,1952,'Einstein\'s heavy name,\nFound within the mushroom cloud,\nBriefly in the light.'],
+  [100,'Fm','Fermium',257,'actinide',7,14,'[Rn] 5f¹² 7s²',1.30,1527,null,null,1952,'Fermi\'s final prize,\nBorn from fire of the bomb,\nHidden from the world.'],
+  [101,'Md','Mendelevium',258,'actinide',7,15,'[Rn] 5f¹³ 7s²',1.30,827,null,null,1955,'Table maker\'s honor,\nBombarded with alpha rays,\nSynthetic and rare.'],
+  [102,'No','Nobelium',259,'actinide',7,16,'[Rn] 5f¹⁴ 7s²',1.30,827,null,null,1958,'Alfred Nobel\'s name,\nSmallest trace in the machine,\nFleeting and unknown.'],
+  [103,'Lr','Lawrencium',266,'actinide',7,17,'[Rn] 5f¹⁴ 7s² 7p¹',1.30,1627,null,null,1961,'Lawrence\'s machine,\nFinal member of the row,\nCyclotron\'s last child.'],
+  [104,'Rf','Rutherfordium',267,'unknown',7,4,'[Rn] 5f¹⁴ 6d² 7s²',null,2100,5500,23.2,1964,'Rutherford\'s own name,\nIsland of stability,\nFirst transactinide.'],
+  [105,'Db','Dubnium',268,'unknown',7,5,'[Rn] 5f¹⁴ 6d³ 7s²',null,null,null,29.3,1967,'Dubna\'s Russian pride,\nNitrogen and californium,\nFleeting heavy heart.'],
+  [106,'Sg','Seaborgium',269,'unknown',7,6,'[Rn] 5f¹⁴ 6d⁴ 7s²',null,null,null,35.0,1974,'Seaborg\'s living name,\nSynthesized in tiny bits,\nSuperheavy soul.'],
+  [107,'Bh','Bohrium',270,'unknown',7,7,'[Rn] 5f¹⁴ 6d⁵ 7s²',null,null,null,37.1,1981,'Niels Bohr\'s heavy gift,\nBorn in cold and lonely labs,\nFleeting atom\'s dance.'],
+  [108,'Hs','Hassium',270,'unknown',7,8,'[Rn] 5f¹⁴ 6d⁶ 7s²',null,null,null,40.7,1984,'Hesse\'s German name,\nLead and iron joined as one,\nFlicker in the void.'],
+  [109,'Mt','Meitnerium',278,'unknown',7,9,'[Rn] 5f¹⁴ 6d⁷ 7s²',null,null,null,37.4,1982,'Meitner\'s justice now,\nFission\'s mother finally named,\nRare and fleeting spark.'],
+  [110,'Ds','Darmstadtium',281,'unknown',7,10,'[Rn] 5f¹⁴ 6d⁸ 7s²',null,null,null,34.8,1994,'Darmstadt\'s heavy child,\nShortest half-life in the pack,\nSynthesized in bits.'],
+  [111,'Rg','Roentgenium',282,'unknown',7,11,'[Rn] 5f¹⁴ 6d¹⁰ 7s¹',null,null,null,28.7,1994,'Roentgen\'s X-ray eye,\nTiny trace of golden glow,\nSynthetic and rare.'],
+  [112,'Cn','Copernicium',285,'unknown',7,12,'[Rn] 5f¹⁴ 6d¹⁰ 7s²',null,null,null,23.7,1996,'Copernicus\' turn,\nGas that looks like heavy lead,\nTurning in the void.'],
+  [113,'Nh','Nihonium',286,'unknown',7,13,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p¹',null,null,null,16,2004,'Japan\'s rising sun,\nFirst of Asia\'s heavy sons,\nBriefly in the light.'],
+  [114,'Fl','Flerovium',289,'unknown',7,14,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p²',null,null,null,14,1998,'Flerov\'s Russian lab,\nRelativistic and weird,\nHeavy gas of old.'],
+  [115,'Mc','Moscovium',290,'unknown',7,15,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p³',null,null,null,13.5,2003,'Moscow\'s heavy heart,\nDecaying in a blink of eye,\nSuperheavy soul.'],
+  [116,'Lv','Livermorium',293,'unknown',7,16,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁴',null,null,null,12.9,2000,'Livermore\'s own bit,\nShortest life of all the row,\nFlicker in the dark.'],
+  [117,'Ts','Tennessine',294,'unknown',7,17,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁵',null,null,null,7.17,2010,'Tennessee\'s own prize,\nHalogen that acts like gold,\nSecond heaviest.'],
+  [118,'Og','Oganesson',294,'unknown',7,18,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁶',null,null,null,4.95,2002,'Yuri\'s heavy crown,\nSolid gas of massive weight,\nEnd of the long road.'],
+];
+
+// Grid positions: [atomicNum, col, row]
+const GRID_POS = {};
+const MAIN_TABLE = [
+  // period 1
+  [1,1,1],[2,18,1],
+  // period 2
+  [3,1,2],[4,2,2],[5,13,2],[6,14,2],[7,15,2],[8,16,2],[9,17,2],[10,18,2],
+  // period 3
+  [11,1,3],[12,2,3],[13,13,3],[14,14,3],[15,15,3],[16,16,3],[17,17,3],[18,18,3],
+  // period 4
+  [19,1,4],[20,2,4],[21,3,4],[22,4,4],[23,5,4],[24,6,4],[25,7,4],[26,8,4],[27,9,4],[28,10,4],[29,11,4],[30,12,4],[31,13,4],[32,14,4],[33,15,4],[34,16,4],[35,17,4],[36,18,4],
+  // period 5
+  [37,1,5],[38,2,5],[39,3,5],[40,4,5],[41,5,5],[42,6,5],[43,7,5],[44,8,5],[45,9,5],[46,10,5],[47,11,5],[48,12,5],[49,13,5],[50,14,5],[51,15,5],[52,16,5],[53,17,5],[54,18,5],
+  // period 6
+  [55,1,6],[56,2,6],[72,4,6],[73,5,6],[74,6,6],[75,7,6],[76,8,6],[77,9,6],[78,10,6],[79,11,6],[80,12,6],[81,13,6],[82,14,6],[83,15,6],[84,16,6],[85,17,6],[86,18,6],
+  // period 7
+  [87,1,7],[88,2,7],[104,4,7],[105,5,7],[106,6,7],[107,7,7],[108,8,7],[109,9,7],[110,10,7],[111,11,7],[112,12,7],[113,13,7],[114,14,7],[115,15,7],[116,16,7],[117,17,7],[118,18,7],
+  // Lanthanides row 9
+  [57,3,9],[58,4,9],[59,5,9],[60,6,9],[61,7,9],[62,8,9],[63,9,9],[64,10,9],[65,11,9],[66,12,9],[67,13,9],[68,14,9],[69,15,9],[70,16,9],[71,17,9],
+  // Actinides row 10
+  [89,3,10],[90,4,10],[91,5,10],[92,6,10],[93,7,10],[94,8,10],[95,9,10],[96,10,10],[97,11,10],[98,12,10],[99,13,10],[100,14,10],[101,15,10],[102,16,10],[103,17,10],
+];
+
+MAIN_TABLE.forEach(([z,c,r]) => { GRID_POS[z] = [c,r]; });
+
+function buildLegend() {
+  const leg = document.getElementById('legend');
+  Object.entries(CATEGORIES).forEach(([key, {label, color}]) => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.dataset.cat = key;
+    item.innerHTML = `<div class="legend-dot" style="background:${color}"></div>${label}`;
+    item.addEventListener('click', () => toggleFilter(key));
+    leg.appendChild(item);
+  });
+}
+
+let activeFilter = null;
+function toggleFilter(cat) {
+  const grid = document.getElementById('grid');
+  const items = document.querySelectorAll('.legend-item');
+  if (activeFilter === cat) {
+    activeFilter = null;
+    grid.classList.remove('filter-active');
+    items.forEach(i => i.classList.remove('selected'));
+    document.querySelectorAll('.el').forEach(e => e.classList.remove('cat-highlight'));
+  } else {
+    activeFilter = cat;
+    grid.classList.add('filter-active');
+    items.forEach(i => i.classList.toggle('selected', i.dataset.cat === cat));
+    document.querySelectorAll('.el').forEach(e => {
+      e.classList.toggle('cat-highlight', e.dataset.cat === cat);
+    });
+  }
+}
+
+function buildGrid() {
+  const grid = document.getElementById('grid');
+  const elemMap = {};
+  ELEMENTS.forEach(e => { elemMap[e[0]] = e; });
+
+  // Create 10 rows × 18 cols
+  for (let row = 1; row <= 10; row++) {
+    for (let col = 1; col <= 18; col++) {
+      const cell = document.createElement('div');
+      cell.style.gridColumn = col;
+      cell.style.gridRow = row;
+      grid.appendChild(cell);
+    }
+  }
+
+  MAIN_TABLE.forEach(([z, col, row]) => {
+    const e = elemMap[z];
+    if (!e) return;
+    const [,sym,name,mass,cat] = e;
+    const cell = document.createElement('div');
+    cell.className = `el cat-${cat}`;
+    cell.dataset.z = z;
+    cell.dataset.cat = cat;
+    cell.style.gridColumn = col;
+    cell.style.gridRow = row;
+    cell.innerHTML = `<div class="num">${z}</div><div class="sym">${sym}</div><div class="name">${name}</div><div class="mass">${parseFloat(mass).toFixed(0)}</div>`;
+    cell.addEventListener('click', () => showDetail(z));
+    grid.appendChild(cell);
+  });
+
+  // add period labels in col 0 (fake col before grid)
+  // add lanthanide/actinide labels
+  const la = document.createElement('div');
+  la.style.gridColumn = 2; la.style.gridRow = 9;
+  la.className = 'group-label'; la.style.fontSize='0.48rem'; la.style.color='rgba(192,132,252,0.6)'; la.textContent='57-71';
+  grid.appendChild(la);
+  const ac = document.createElement('div');
+  ac.style.gridColumn = 2; ac.style.gridRow = 10;
+  ac.className = 'group-label'; ac.style.fontSize='0.48rem'; ac.style.color='rgba(251,113,133,0.6)'; ac.textContent='89-103';
+  grid.appendChild(ac);
+}
+
+function catColor(cat) {
+  return CATEGORIES[cat]?.color || '#fff';
+}
+
+let activeEl = null;
+function showDetail(z) {
+  const e = ELEMENTS.find(x => x[0] === z);
+  if (!e) return;
+  const [num,sym,name,mass,cat,period,group,econf,en,melt,boil,density,disc,desc] = e;
+
+  // Mark active
+  document.querySelectorAll('.el').forEach(el => el.classList.toggle('active', +el.dataset.z === z));
+
+  const color = catColor(cat);
+  const catLabel = CATEGORIES[cat]?.label || cat;
+
+  document.getElementById('detail-placeholder').style.display = 'none';
+  const panel = document.getElementById('detail');
+  panel.classList.add('visible');
+  panel.innerHTML = `
+    <div class="detail-inner">
+      <div class="detail-symbol-block">
+        <div class="detail-sym-big" style="color:${color}">${sym}</div>
+        <div class="detail-name-num">
+          <span class="detail-name">${name}</span>
+          <span class="detail-num">#${num}</span>
+        </div>
+        <div class="detail-cat-badge" style="color:${color};background:${color}18">${catLabel}</div>
+        ${buildElectronVis(econf, color)}
+      </div>
+      <div>
+        <div class="detail-props">
+          <div class="prop-item"><div class="prop-label">Atomic Mass</div><div class="prop-value">${mass} u</div></div>
+          <div class="prop-item"><div class="prop-label">Electron Config</div><div class="prop-value" style="font-size:0.75rem">${econf}</div></div>
+          <div class="prop-item"><div class="prop-label">Electronegativity</div><div class="prop-value">${en !== null ? en : '—'}</div></div>
+          <div class="prop-item"><div class="prop-label">Melting Point</div><div class="prop-value">${melt !== null ? melt + ' °C' : '—'}</div></div>
+          <div class="prop-item"><div class="prop-label">Boiling Point</div><div class="prop-value">${boil !== null ? boil + ' °C' : '—'}</div></div>
+          <div class="prop-item"><div class="prop-label">Density</div><div class="prop-value">${density !== null ? density + ' g/cm³' : '—'}</div></div>
+          <div class="prop-item"><div class="prop-label">Period</div><div class="prop-value">${period}</div></div>
+          <div class="prop-item"><div class="prop-label">Group</div><div class="prop-value">${group}</div></div>
+          <div class="prop-item"><div class="prop-label">Discovered</div><div class="prop-value">${disc}</div></div>
+        </div>
+        <div class="detail-desc">${desc}</div>
+      </div>
+    </div>
+  `;
+  panel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+function buildElectronVis(econf, color) {
+  // Simple shell count from config
+  const shells = parseShells(econf);
+  if (!shells.length) return '';
+  const maxShells = shells.length;
+  const size = 90 + maxShells * 18;
+  const half = size / 2;
+  let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="margin-top:10px;opacity:0.85">`;
+  svg += `<circle cx="${half}" cy="${half}" r="8" fill="${color}" opacity="0.9"/>`;
+  shells.forEach((count, i) => {
+    const r = 18 + i * 17;
+    const dur = 3 + i * 1.2;
+    svg += `<circle cx="${half}" cy="${half}" r="${r}" fill="none" stroke="${color}" stroke-width="0.7" opacity="0.25"/>`;
+    for (let e = 0; e < Math.min(count, 12); e++) {
+      const angle = (e / Math.min(count, 12)) * 2 * Math.PI;
+      const ex = half + r * Math.cos(angle);
+      const ey = half + r * Math.sin(angle);
+      svg += `<circle cx="${ex}" cy="${ey}" r="2.5" fill="${color}" opacity="0.9"><animateTransform attributeName="transform" type="rotate" from="0 ${half} ${half}" to="360 ${half} ${half}" dur="${dur}s" repeatCount="indefinite"/></circle>`;
+    }
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+function parseShells(econf) {
+  // Simplified: count electrons per shell based on principal quantum number
+  const map = { '1s':1,'2s':2,'2p':2,'3s':3,'3p':3,'3d':3,'4s':4,'4p':4,'4d':4,'4f':4,'5s':5,'5p':5,'5d':5,'5f':5,'6s':6,'6p':6,'6d':6,'7s':7,'7p':7 };
+  const shellCounts = {};
+  const re = /(\d[spdf]\d+)/g;
+  let m;
+  // Remove noble gas core notation
+  const conf = econf.replace(/\[[A-Z][a-z]*\]\s*/,'');
+  while ((m = re.exec(conf)) !== null) {
+    const part = m[1];
+    const shell = parseInt(part[0]);
+    const count = parseInt(part.slice(2));
+    shellCounts[shell] = (shellCounts[shell] || 0) + count;
+  }
+  // Also parse the part without numbers if config has noble gas shorthand
+  const nums = Object.keys(shellCounts).map(Number).sort();
+  if (!nums.length) {
+    // fallback: deduce from atomic number via full config
+    return [];
+  }
+  const maxShell = Math.max(...nums);
+  return Array.from({length: maxShell}, (_,i) => shellCounts[i+1] || 0);
+}
+
+buildLegend();
+buildGrid();
+</script>
+</body>
+</html>
