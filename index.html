@@ -126,6 +126,79 @@
     margin: 0 auto;
   }
 
+  .haiku-hero {
+    grid-column: 3 / 13;
+    grid-row: 2 / 4;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
+    box-shadow: 0 12px 36px rgba(0,0,0,0.45);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 4px;
+    position: relative;
+    z-index: 2;
+    animation: haikuHeroIntro 0.6s ease-out both;
+  }
+
+  .haiku-hero::after {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border: 1px dashed rgba(255,255,255,0.12);
+    border-radius: 8px;
+    pointer-events: none;
+  }
+
+  .haiku-kicker {
+    font-size: 0.48rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .haiku-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(0.8rem, 1.2vw, 1.05rem);
+    color: var(--text);
+  }
+
+  .haiku-text {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(0.7rem, 1.2vw, 0.95rem);
+    line-height: 1.35;
+    color: var(--text);
+    white-space: pre-line;
+    max-width: 360px;
+  }
+
+  .haiku-hint {
+    font-size: 0.48rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .haiku-hero.pulse {
+    animation: haikuHeroPulse 0.6s ease-out;
+  }
+
+  @keyframes haikuHeroIntro {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes haikuHeroPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.015); }
+    100% { transform: scale(1); }
+  }
+
   .el {
     position: relative;
     border-radius: 5px;
@@ -468,6 +541,7 @@
     .detail-symbol-block { align-items: center; }
     .detail-props { grid-template-columns: repeat(2, 1fr); gap: 12px 16px; }
     .detail-desc { margin: 0 auto; }
+    .haiku-hero { grid-column: 3 / 16; grid-row: 2 / 4; padding: 8px 10px; }
   }
 
   @media (max-width: 480px) {
@@ -479,6 +553,8 @@
     .el .num { font-size: 0.45rem; }
     .detail-props { grid-template-columns: 1fr; }
     .footer { display: none; }
+    .haiku-hero { grid-column: 3 / 17; grid-row: 2 / 4; padding: 8px 8px; }
+    .haiku-text { font-size: 0.8rem; }
   }
   </style>
   </head>
@@ -739,6 +815,17 @@ function buildGrid() {
   ac.style.gridColumn = 2; ac.style.gridRow = 10;
   ac.className = 'group-label'; ac.style.fontSize='0.48rem'; ac.style.color='rgba(251,113,133,0.6)'; ac.textContent='89-103';
   grid.appendChild(ac);
+
+  const hero = document.createElement('div');
+  hero.className = 'haiku-hero';
+  hero.id = 'haiku-hero';
+  hero.innerHTML = `
+    <div class="haiku-kicker">Haiku</div>
+    <div class="haiku-title">Pick an element</div>
+    <div class="haiku-text">The table holds a poem.\nTap any element to reveal it.</div>
+    <div class="haiku-hint">Click an element</div>
+  `;
+  grid.appendChild(hero);
 }
 
 function catColor(cat) {
@@ -756,6 +843,8 @@ function showDetail(z) {
 
   const color = catColor(cat);
   const catLabel = CATEGORIES[cat]?.label || cat;
+
+  updateHaikuHero(e, color, catLabel, true);
 
   document.getElementById('detail-placeholder').style.display = 'none';
   const panel = document.getElementById('detail');
@@ -788,6 +877,28 @@ function showDetail(z) {
     </div>
   `;
   panel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+function updateHaikuHero(e, color, catLabel, doPulse) {
+  const hero = document.getElementById('haiku-hero');
+  if (!hero) return;
+  const num = e[0];
+  const name = e[2];
+  const desc = e[13];
+  hero.innerHTML = `
+    <div class="haiku-kicker" style="color:${color}">Haiku</div>
+    <div class="haiku-title">${name} <span style="color:${color};font-weight:700">#${num}</span></div>
+    <div class="haiku-text">${desc}</div>
+    <div class="haiku-hint">${catLabel}</div>
+  `;
+  hero.style.borderColor = `${color}66`;
+  hero.style.boxShadow = `0 12px 36px rgba(0,0,0,0.45), 0 0 22px ${color}55`;
+  hero.style.background = `linear-gradient(135deg, ${color}22, rgba(255,255,255,0.02))`;
+  if (doPulse) {
+    hero.classList.remove('pulse');
+    void hero.offsetWidth;
+    hero.classList.add('pulse');
+  }
 }
 
 function buildElectronVis(econf, color) {
@@ -838,8 +949,17 @@ function parseShells(econf) {
   return Array.from({length: maxShell}, (_,i) => shellCounts[i+1] || 0);
 }
 
+function setInitialHaiku() {
+  const e = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
+  if (!e) return;
+  const color = catColor(e[4]);
+  const catLabel = CATEGORIES[e[4]]?.label || e[4];
+  updateHaikuHero(e, color, catLabel, false);
+}
+
 buildLegend();
 buildGrid();
+setInitialHaiku();
 </script>
 </body>
 </html>
